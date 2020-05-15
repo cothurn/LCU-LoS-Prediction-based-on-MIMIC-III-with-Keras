@@ -1,0 +1,75 @@
+---
+title: "LoS Data processing"
+---
+
+```{r, input}
+admission = read.csv(file = file.choose(), stringsAsFactors = FALSE)
+ICUStay = read.csv(file=file.choose(),stringsAsFactors = FALSE)
+patient = read.csv(file=file.choose(), stringsAsFactors = FALSE)
+```
+
+```{r, data processing}
+dataV1 = data.frame("ICU ID" = ICUStay$ICUSTAY_ID)
+dataV1$los = ICUStay$LOS
+dataV1$patientID = ICUStay$SUBJECT_ID
+dataV1$admissionID = ICUStay$HADM_ID
+ICUStay = ICUStay[order(ICUStay$SUBJECT_ID,ICUStay$INTIME),]
+#gender
+for(i in 1:99999)
+{
+  dataV1$gender[dataV1$patientID==i] = patient$GENDER[patient$SUBJECT_ID==i]
+  if(i%%1000 == 0)
+    print(i)
+}
+#age
+for(i in 1:61532)
+{
+  dob = patient$DOB[patient$SUBJECT_ID==dataV1$patientID[i]]
+  dobYear = as.integer(strsplit(dob,"-")[[1]][1])
+  doa = admission$ADMITTIME[admission$HADM_ID==dataV1$admissionID[i]]
+  doaYear = as.integer(strsplit(doa,"-")[[1]][1])
+  ageA = doaYear-dobYear
+  dataV1$AgeAdm[i] = ageA
+  if(i%%1000 == 0)
+    print(i)
+}
+#insurance information
+for(i in 1:61532)
+{
+  insurance = admission$INSURANCE[admission$HADM_ID==dataV1$admissionID[i]]
+  dataV1$insurance[i] = insurance
+  if(i%%1000 == 0)
+    print(i)
+}
+#ethnicity
+for(i in 1:61532)
+{
+  race = admission$ETHNICITY[admission$HADM_ID==dataV1$admissionID[i]]
+  dataV1$ethnicity[i] = race
+  if(i%%1000 == 0)
+    print(i)  
+}
+#marital status
+for(i in 1:61532)
+{
+  marital = admission$MARITAL_STATUS[admission$HADM_ID==dataV1$admissionID[i]]
+  dataV1$maritalStatus[i] = marital
+    if(i%%1000 == 0)
+    print(i)  
+}
+dataV1$admissionType = ""
+for(i in 1:dim(dataV1)[1])
+{
+  dataV1$admissionType[i] = admission$ADMISSION_TYPE[admission$HADM_ID==dataV1$admissionID[i]]
+}
+
+dataV1 = dataV1[dataV1$ICUSeqWithSameHopsitalAdmission==1,]
+dataV1 = dataV1[dataV1$AdmissionSeq==1,]
+dataV1_1 = fastDummies::dummy_cols(dataV1)
+dataV1_2 = dataV1_1[dataV1_1$los>1,]
+output = subset(dataV1, select = c(ICU.ID,los))
+input = subset(dataV1_1,select = -c(los,patientID,admissionID,gender,insurance,ethnicity,maritalStatus,firstICU,lastICU,admissionType))
+write.csv(input,file = file.choose())
+write.csv(output,file = file.choose())
+
+```
